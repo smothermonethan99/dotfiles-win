@@ -1,0 +1,125 @@
+# Starship Setup Script for Windows PowerShell
+# Run this script in PowerShell as Administrator
+
+Write-Host "Installing Starship..." -ForegroundColor Cyan
+winget install --id Starship.Starship -e
+
+Write-Host "`nConfiguring PowerShell profile..." -ForegroundColor Cyan
+
+# Create profile if it doesn't exist
+if (!(Test-Path -Path $PROFILE)) {
+    New-Item -ItemType File -Path $PROFILE -Force | Out-Null
+}
+
+# Add Starship initialization to profile
+$starshipInit = "Invoke-Expression (&starship init powershell)"
+$profileContent = Get-Content -Path $PROFILE -Raw -ErrorAction SilentlyContinue
+
+if ($profileContent -notmatch [regex]::Escape($starshipInit)) {
+    Add-Content -Path $PROFILE -Value "`n$starshipInit"
+    Write-Host "Added Starship initialization to PowerShell profile" -ForegroundColor Green
+} else {
+    Write-Host "Starship already configured in PowerShell profile" -ForegroundColor Yellow
+}
+
+Write-Host "`nCreating Starship config directory..." -ForegroundColor Cyan
+
+# Create config directory
+$configPath = "$env:USERPROFILE\.config"
+if (!(Test-Path -Path $configPath)) {
+    New-Item -ItemType Directory -Path $configPath -Force | Out-Null
+}
+
+# Create starship.toml
+$tomlPath = "$configPath\starship.toml"
+$tomlContent = @'
+# ~/.config/starship.toml
+add_newline = false
+command_timeout = 1000
+format = """$os$username$hostname$kubernetes$directory$git_branch$git_status"""
+# Drop ugly default prompt characters
+[character]
+success_symbol = ''
+error_symbol = ''
+# ---
+[os]
+format = '[$symbol](bold white) '   
+disabled = false
+[os.symbols]
+Windows = ''
+Arch = '󰣇'
+Ubuntu = ''
+Macos = '󰀵'
+# ---
+# Shows the username
+[username]
+style_user = 'white bold'
+style_root = 'black bold'
+format = '[$user]($style) '
+disabled = false
+show_always = true
+# Shows the hostname
+[hostname]
+ssh_only = false
+format = 'on [$hostname](bold yellow) '
+disabled = false
+# Shows current directory
+[directory]
+truncation_length = 1
+truncation_symbol = '…/'
+home_symbol = '󰋜 ~'
+read_only_style = '197'
+read_only = '  '
+format = 'at [$path]($style)[$read_only]($read_only_style) '
+# Shows current git branch
+[git_branch]
+symbol = ' '
+format = 'via [$symbol$branch]($style)'
+# truncation_length = 4
+truncation_symbol = '…/'
+style = 'bold green'
+# Shows current git status
+[git_status]
+format = '[$all_status$ahead_behind]($style) '
+style = 'bold green'
+conflicted = '🏳'
+up_to_date = ''
+untracked = ' '
+ahead = '⇡${count}'
+diverged = '⇕⇡${ahead_count}⇣${behind_count}'
+behind = '⇣${count}'
+stashed = ' '
+modified = ' '
+staged = '[++\($count\)](green)'
+renamed = '襁 '
+deleted = ' '
+# Shows kubernetes context and namespace
+[kubernetes]
+format = 'via [󱃾 $context\($namespace\)](bold purple) '
+disabled = false
+# ---
+[vagrant]
+disabled = true
+[docker_context]
+disabled = true
+[helm]
+disabled = true
+[python]
+disabled = true
+[nodejs]
+disabled = true
+[ruby]
+disabled = true
+[terraform]
+disabled = true
+'@
+
+[System.IO.File]::WriteAllText($tomlPath, $tomlContent, [System.Text.UTF8Encoding]::new($false))
+Write-Host "Created Starship config at: $tomlPath" -ForegroundColor Green
+
+Write-Host "`nIMPORTANT: Make sure you have a Nerd Font installed!" -ForegroundColor Magenta
+Write-Host "Recommended fonts: JetBrainsMono Nerd Font, FiraCode Nerd Font" -ForegroundColor Magenta
+Write-Host "Download from: https://www.nerdfonts.com/font-downloads" -ForegroundColor Cyan
+
+Write-Host "`n✓ Setup complete!" -ForegroundColor Green
+Write-Host "Please restart your PowerShell session for changes to take effect." -ForegroundColor Yellow
