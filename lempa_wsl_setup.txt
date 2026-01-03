@@ -1,0 +1,260 @@
+# Christian Lempa WSL Rice Setup Script
+# Run as Administrator in PowerShell
+
+Write-Host "Starting Christian Lempa WSL Rice Setup..." -ForegroundColor Cyan
+
+# Check if running as Administrator
+if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    Write-Warning "Please run this script as Administrator!"
+    exit
+}
+
+# Install winget if not present
+if (!(Get-Command winget -ErrorAction SilentlyContinue)) {
+    Write-Host "Installing winget..." -ForegroundColor Yellow
+    Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe
+}
+
+# Christian Lempa's Tools from cheat-sheets
+Write-Host "`nInstalling Christian Lempa's recommended tools..." -ForegroundColor Cyan
+
+$tools = @(
+    "Git.Git",
+    "Microsoft.VisualStudioCode",
+    "Microsoft.WindowsTerminal",
+    "Docker.DockerDesktop",
+    "Microsoft.PowerShell",
+    "Starship.Starship",
+    "Neovim.Neovim",
+    "JanDeDobbeleer.OhMyPosh",
+    "Microsoft.AzureCLI",
+    "Kubernetes.kubectl",
+    "Helm.Helm",
+    "Terraform.Terraform",
+    "Ansible.Ansible",
+    "Python.Python.3.12",
+    "GoLang.Go",
+    "OpenJS.NodeJS",
+    "GitHub.cli",
+    "Mozilla.Firefox",
+    "7zip.7zip",
+    "Notepad++.Notepad++",
+    "WinSCP.WinSCP",
+    "PuTTY.PuTTY",
+    "VideoLAN.VLC",
+    "obsproject.obs-studio",
+    "Microsoft.PowerToys"
+)
+
+foreach ($tool in $tools) {
+    Write-Host "Installing $tool..." -ForegroundColor Green
+    winget install --id $tool --silent --accept-package-agreements --accept-source-agreements
+}
+
+# Install Hack Nerd Font
+Write-Host "`nInstalling Hack Nerd Font..." -ForegroundColor Cyan
+$fontUrl = "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.1.1/Hack.zip"
+$fontZip = "$env:TEMP\Hack.zip"
+$fontDir = "$env:TEMP\HackFont"
+
+Invoke-WebRequest -Uri $fontUrl -OutFile $fontZip
+Expand-Archive -Path $fontZip -DestinationPath $fontDir -Force
+
+$fonts = (New-Object -ComObject Shell.Application).Namespace(0x14)
+Get-ChildItem -Path $fontDir -Filter "*.ttf" | ForEach-Object {
+    $fonts.CopyHere($_.FullName)
+}
+
+Remove-Item -Path $fontZip, $fontDir -Recurse -Force
+
+# Enable WSL
+Write-Host "`nEnabling WSL..." -ForegroundColor Cyan
+wsl --install -d Ubuntu
+wsl --set-default-version 2
+
+# Set Windows to Dark Mode
+Write-Host "`nSetting Windows to Dark Mode..." -ForegroundColor Cyan
+Set-ItemProperty -Path HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize -Name AppsUseLightTheme -Value 0
+Set-ItemProperty -Path HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize -Name SystemUsesLightTheme -Value 0
+
+# Taskbar Settings (Christian Lempa style - minimal)
+Write-Host "`nConfiguring Taskbar..." -ForegroundColor Cyan
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "SearchboxTaskbarMode" -Value 0
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowTaskViewButton" -Value 0
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAl" -Value 0
+
+# Download and Set Wallpaper
+Write-Host "`nDownloading and setting wallpaper..." -ForegroundColor Cyan
+$wallpaperUrl = "https://github.com/ChristianLempa/hackbox/raw/main/src/assets/mr-robot-wallpaper.png"
+$wallpaperPath = "$env:USERPROFILE\Pictures\mr-robot-wallpaper.png"
+
+Invoke-WebRequest -Uri $wallpaperUrl -OutFile $wallpaperPath
+
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class Wallpaper {
+    [DllImport("user32.dll", CharSet=CharSet.Auto)]
+    public static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
+}
+"@
+
+[Wallpaper]::SystemParametersInfo(0x0014, 0, $wallpaperPath, 0x0001 -bor 0x0002)
+
+# Configure Windows Terminal with xcad colors
+Write-Host "`nConfiguring Windows Terminal with xcad theme..." -ForegroundColor Cyan
+$wtSettingsPath = "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
+
+$wtSettings = @{
+    "$schema" = "https://aka.ms/terminal-profiles-schema"
+    "defaultProfile" = "{2c4de342-38b7-51cf-b940-2309a097f518}"
+    "copyOnSelect" = $false
+    "copyFormatting" = $false
+    "schemes" = @(
+        @{
+            "name" = "xcad"
+            "background" = "#1A1A1A"
+            "black" = "#121212"
+            "blue" = "#2B4FFF"
+            "brightBlack" = "#666666"
+            "brightBlue" = "#5C78FF"
+            "brightCyan" = "#5AC8FF"
+            "brightGreen" = "#905AFF"
+            "brightPurple" = "#5EA2FF"
+            "brightRed" = "#BA5AFF"
+            "brightWhite" = "#FFFFFF"
+            "brightYellow" = "#685AFF"
+            "cursorColor" = "#FFFFFF"
+            "cyan" = "#28B9FF"
+            "foreground" = "#F1F1F1"
+            "green" = "#7129FF"
+            "purple" = "#2883FF"
+            "red" = "#A52AFF"
+            "selectionBackground" = "#FFFFFF"
+            "white" = "#F1F1F1"
+            "yellow" = "#3D2AFF"
+        }
+    )
+    "profiles" = @{
+        "defaults" = @{
+            "colorScheme" = "xcad"
+            "cursorShape" = "filledBox"
+            "font" = @{
+                "face" = "Hack Nerd Font"
+                "size" = 14
+            }
+            "historySize" = 12000
+            "intenseTextStyle" = "bright"
+            "opacity" = 95
+            "padding" = "8"
+            "scrollbarState" = "visible"
+            "useAcrylic" = $false
+        }
+        "list" = @(
+            @{
+                "guid" = "{2c4de342-38b7-51cf-b940-2309a097f518}"
+                "name" = "Ubuntu"
+                "source" = "Windows.Terminal.Wsl"
+                "startingDirectory" = "~"
+            }
+        )
+    }
+}
+
+$wtSettings | ConvertTo-Json -Depth 10 | Set-Content -Path $wtSettingsPath
+
+Write-Host "`nCreating WSL dotfiles setup script..." -ForegroundColor Cyan
+
+# Create WSL setup script
+$wslSetupScript = @'
+#!/bin/bash
+# Christian Lempa WSL Dotfiles Setup
+
+echo "Setting up Christian Lempa dotfiles in WSL..."
+
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install essential tools
+sudo apt install -y git curl wget tmux htop btop ncdu ripgrep fd-find bat exa fzf
+
+# Install Starship
+curl -sS https://starship.rs/install.sh | sh -s -- -y
+
+# Clone Christian Lempa's dotfiles (if available) or create custom config
+mkdir -p ~/.config
+
+# Starship config (Christian Lempa style)
+mkdir -p ~/.config
+cat > ~/.config/starship.toml << 'EOF'
+format = """
+[┌───────────────────>](bold green)
+[│](bold green)$directory$git_branch$git_status
+[└─>](bold green) """
+
+[directory]
+style = "blue"
+truncation_length = 3
+truncate_to_repo = true
+
+[character]
+success_symbol = "[➜](bold green)"
+error_symbol = "[➜](bold red)"
+
+[git_branch]
+format = "[$branch]($style)"
+style = "bright-black"
+
+[git_status]
+format = '([\[$all_status$ahead_behind\]]($style) )'
+style = "cyan"
+EOF
+
+# Configure .bashrc with Starship and aliases
+cat >> ~/.bashrc << 'EOF'
+
+# Christian Lempa style aliases
+alias ll='ls -lah'
+alias k='kubectl'
+alias d='docker'
+alias dc='docker-compose'
+alias tf='terraform'
+alias cls='clear'
+
+# Starship prompt
+eval "$(starship init bash)"
+EOF
+
+# Tmux config
+cat > ~/.tmux.conf << 'EOF'
+set -g default-terminal "screen-256color"
+set -g mouse on
+set -g history-limit 10000
+
+# Christian Lempa inspired theme
+set -g status-style bg='#1A1A1A',fg='#F1F1F1'
+set -g pane-border-style fg='#2B4FFF'
+set -g pane-active-border-style fg='#7129FF'
+EOF
+
+echo "WSL dotfiles setup complete! Please restart your terminal or run: source ~/.bashrc"
+'@
+
+$wslSetupScript | Out-File -FilePath "$env:TEMP\wsl_setup.sh" -Encoding UTF8
+
+Write-Host "`nSetup script created. Now configuring WSL..." -ForegroundColor Cyan
+Write-Host "Please wait for WSL installation to complete, then run:" -ForegroundColor Yellow
+Write-Host "wsl bash /mnt/c/Users/$env:USERNAME/AppData/Local/Temp/wsl_setup.sh" -ForegroundColor Yellow
+
+# Copy setup script to WSL accessible location
+$setupScriptWin = "$env:USERPROFILE\wsl_setup.sh"
+Copy-Item -Path "$env:TEMP\wsl_setup.sh" -Destination $setupScriptWin
+
+Write-Host "`n============================================" -ForegroundColor Green
+Write-Host "Christian Lempa Rice Setup Complete!" -ForegroundColor Green
+Write-Host "============================================" -ForegroundColor Green
+Write-Host "`nNext steps:" -ForegroundColor Cyan
+Write-Host "1. Restart your computer to complete WSL installation" -ForegroundColor White
+Write-Host "2. Open Windows Terminal" -ForegroundColor White
+Write-Host "3. Run: wsl bash ~/wsl_setup.sh" -ForegroundColor White
+Write-Host "4. Enjoy your Christian Lempa setup! 🚀" -ForegroundColor White
